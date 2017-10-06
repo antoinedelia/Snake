@@ -16,7 +16,7 @@ namespace Snake
 
         public Snake1()
         {
-            Size = 7;
+            Size = 3;
             X = 1;
             Y = 1;
             XSpeed = 1;
