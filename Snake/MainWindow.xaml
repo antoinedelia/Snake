@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Snake"
         mc:Ignorable="d"
-        Title="MainWindow" Height="500" Width="500"
+        Title="MainWindow" Height="1050" Width="1020"
         KeyDown="window_KeyDown"
-        x:Name="window">
-    <Grid>
+        x:Name="window"
+        WindowStartupLocation="CenterScreen">
+    <Grid Name="WindowGrid">
     </Grid>
 </Window>

@@ -39,11 +39,38 @@ namespace Snake
             Rows = 20;
             Grid = new int[Rows][];
             SnakeHistory = new List<Point>();
-            for (int i = 0; i < Rows; i++)
-                Grid[i] = new int[Cols];
+            InitGrid();
 
             Thread thread = new Thread(UpdateGame);
             thread.Start();
+        }
+
+        private void InitGrid()
+        {
+            for (int i = 0; i < Rows; i++)
+            {
+                var row = new RowDefinition();
+                row.Height = new GridLength(50);
+                WindowGrid.RowDefinitions.Add(row);
+                Grid[i] = new int[Cols];
+                for (int j = 0; j < Cols; j++)
+                {
+                    var col = new ColumnDefinition();
+                    col.Width = new GridLength(50);
+                    WindowGrid.ColumnDefinitions.Add(col);
+                }
+            }
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Cols; j++)
+                {
+                    Canvas canvas = new Canvas();
+                    canvas.Background = Brushes.White;
+                    canvas.SetValue(System.Windows.Controls.Grid.ColumnProperty, j);
+                    canvas.SetValue(System.Windows.Controls.Grid.RowProperty, i);
+                    WindowGrid.Children.Add(canvas);
+                }
+            }
         }
 
         private void UpdateGame()
@@ -52,37 +79,51 @@ namespace Snake
             {
                 snake.MoveSnake();
                 if (IsGameOver()) break;
-
-                if (SnakeHistory.Count >= snake.Size)
-                {
-                    Grid[(int)SnakeHistory.ElementAt(0).Y][(int)SnakeHistory.ElementAt(0).X] = 0;
-                    SnakeHistory.RemoveAt(0);
-                }
                 SnakeHistory.Add(new Point(snake.X, snake.Y));
                 Grid[snake.Y][snake.X] = 1;
-
-                for (int i = 0; i < Rows; i++)
+                Dispatcher.Invoke(() =>
                 {
-                    for (int j = 0; j < Cols; j++)
+                    DrawSnake();
+                });
+                Thread.Sleep(100);
+            }
+        }
+
+        private void DrawSnake()
+        {
+            if (SnakeHistory.Count >= snake.Size)
+            {
+                var itemsInFirstRow = (Canvas)WindowGrid.Children
+                    .Cast<UIElement>()
+                    .Where(row => System.Windows.Controls.Grid.GetRow(row) == SnakeHistory.ElementAt(0).Y)
+                    .Where(col => System.Windows.Controls.Grid.GetColumn(col) == SnakeHistory.ElementAt(0).X)
+                    .FirstOrDefault();
+                itemsInFirstRow.Background = Brushes.White;
+                Grid[(int)SnakeHistory.ElementAt(0).Y][(int)SnakeHistory.ElementAt(0).X] = 0;
+                SnakeHistory.RemoveAt(0);
+            }
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Cols; j++)
+                {
+                    if (Grid[i][j] == 1)
                     {
-                        if (Grid[i][j] == 1)
-                            Console.Write("X");
-                        else
-                            Console.Write("-");
+                        var itemsInFirstRow = (Canvas)WindowGrid.Children
+                            .Cast<UIElement>()
+                            .Where(row => System.Windows.Controls.Grid.GetRow(row) == i)
+                            .Where(col => System.Windows.Controls.Grid.GetColumn(col) == j)
+                            .FirstOrDefault();
+                        itemsInFirstRow.Background = Brushes.Red;
                     }
-                    Console.WriteLine("");
                 }
-                Console.WriteLine("");
-                Thread.Sleep(500);
             }
         }
 
         private bool IsGameOver()
         {
             if (snake.X >= Cols || snake.X < 0 || snake.Y >= Rows || snake.Y < 0)
-            {
                 return true;
-            }
+
             return false;
         }
 
