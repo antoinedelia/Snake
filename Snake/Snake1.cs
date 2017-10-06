@@ -28,5 +28,41 @@ namespace Snake
             X += XSpeed;
             Y += YSpeed;
         }
+
+        public void ChangeDirection(Directions direction)
+        {
+            if(direction == Directions.UP)
+            {
+                if (YSpeed == 1) return;
+                XSpeed = 0;
+                YSpeed = -1;
+            }
+            if (direction == Directions.DOWN)
+            {
+                if (YSpeed == -1) return;
+                XSpeed = 0;
+                YSpeed = 1;
+            }
+            if (direction == Directions.LEFT)
+            {
+                if (XSpeed == 1) return;
+                XSpeed = -1;
+                YSpeed = 0;
+            }
+            if (direction == Directions.RIGHT)
+            {
+                if (XSpeed == -1) return;
+                XSpeed = 1;
+                YSpeed = 0;
+            }
+        }
+
+        public enum Directions
+        {
+            UP,
+            DOWN,
+            LEFT,
+            RIGHT
+        }
     }
 }

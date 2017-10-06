@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using SharpDX.XInput;
 
 namespace Snake
 {
@@ -30,6 +31,11 @@ namespace Snake
         private Point FruitPosition;
         private Thread thread;
         private Random random;
+        private Controller controller;
+        private Gamepad gamepad;
+        public int deadband = 2500;
+        public Point leftThumb, rightThumb = new Point(0, 0);
+        public float leftTrigger, rightTrigger;
         public MainWindow()
         {
             InitializeComponent();
@@ -44,6 +50,7 @@ namespace Snake
             Grid = new int[Rows][];
             random = new Random();
             SnakeHistory = new List<Point>();
+            controller = new Controller(UserIndex.One);
             InitGrid();
             MakeFruit();
 
@@ -58,8 +65,8 @@ namespace Snake
             {
                 for (int j = 0; j < Cols; j++)
                 {
-                    if (Grid[j][i] == (int)Case.EMPTY)
-                        fruitChoices.Add(new Point(j, i));
+                    if (Grid[i][j] == (int)Case.EMPTY)
+                        fruitChoices.Add(new Point(i, j));
                 }
             }
 
@@ -101,6 +108,7 @@ namespace Snake
         {
             while (true)
             {
+                if (controller.IsConnected) CheckGamePad();
                 snake.MoveSnake();
                 if (IsGameOver()) break;
                 if (snake.X == FruitPosition.X && snake.Y == FruitPosition.Y)
@@ -116,6 +124,21 @@ namespace Snake
                 });
                 Thread.Sleep(100);
             }
+        }
+
+        private void CheckGamePad()
+        {
+            gamepad = controller.GetState().Gamepad;
+            leftThumb.X = (Math.Abs((float)gamepad.LeftThumbX) < deadband) ? 0 : (float)gamepad.LeftThumbX / short.MinValue * -100;
+            leftThumb.Y = (Math.Abs((float)gamepad.LeftThumbY) < deadband) ? 0 : (float)gamepad.LeftThumbY / short.MaxValue * 100;
+
+            if (leftThumb.X < -50) snake.ChangeDirection(Snake1.Directions.LEFT);
+
+            if (leftThumb.X > 50) snake.ChangeDirection(Snake1.Directions.RIGHT);
+            
+            if (leftThumb.Y < -50) snake.ChangeDirection(Snake1.Directions.DOWN);
+
+            if (leftThumb.Y > 50) snake.ChangeDirection(Snake1.Directions.UP);
         }
 
         private void DrawGame()
@@ -162,30 +185,13 @@ namespace Snake
 
         private void window_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Left)
-            {
-                if (snake.XSpeed == 1) return;
-                snake.XSpeed = -1;
-                snake.YSpeed = 0;
-            }
-            if (e.Key == Key.Right)
-            {
-                if (snake.XSpeed == -1) return;
-                snake.XSpeed = 1;
-                snake.YSpeed = 0;
-            }
-            if (e.Key == Key.Up)
-            {
-                if (snake.YSpeed == 1) return;
-                snake.XSpeed = 0;
-                snake.YSpeed = -1;
-            }
-            if (e.Key == Key.Down)
-            {
-                if (snake.YSpeed == -1) return;
-                snake.XSpeed = 0;
-                snake.YSpeed = 1;
-            }
+            if (e.Key == Key.Left) snake.ChangeDirection(Snake1.Directions.LEFT);
+
+            if (e.Key == Key.Right) snake.ChangeDirection(Snake1.Directions.RIGHT);
+
+            if (e.Key == Key.Up) snake.ChangeDirection(Snake1.Directions.UP);
+            
+            if (e.Key == Key.Down) snake.ChangeDirection(Snake1.Directions.DOWN);
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
