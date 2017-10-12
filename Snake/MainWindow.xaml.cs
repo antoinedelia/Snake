@@ -23,10 +23,13 @@ namespace Snake
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static int SIZE = 40;
         private int Cols;
         private int Rows;
+        private int Score;
+        private bool GameOver;
         private Snake1 snake;
-        private int[][] Grid;
+        private int[][] GameGrid;
         private List<Point> SnakeHistory;
         private Point FruitPosition;
         private Thread thread;
@@ -35,7 +38,6 @@ namespace Snake
         private Gamepad gamepad;
         public int deadband = 2500;
         public Point leftThumb, rightThumb = new Point(0, 0);
-        public float leftTrigger, rightTrigger;
         public MainWindow()
         {
             InitializeComponent();
@@ -44,15 +46,19 @@ namespace Snake
 
         private void NewGame()
         {
-            snake = new Snake1();
             Cols = 20;
             Rows = 20;
-            Grid = new int[Rows][];
+            Score = 0;
+            Height = Rows * SIZE + 150;
+            Width = Cols * SIZE + 100;
+            GameOver = false;
+            GameGrid = new int[Rows][];
             random = new Random();
             SnakeHistory = new List<Point>();
-            controller = new Controller(UserIndex.One);
             InitGrid();
+            controller = new Controller(UserIndex.One);
             MakeFruit();
+            snake = new Snake1();
 
             thread = new Thread(UpdateGame);
             thread.Start();
@@ -65,29 +71,30 @@ namespace Snake
             {
                 for (int j = 0; j < Cols; j++)
                 {
-                    if (Grid[i][j] == (int)Case.EMPTY)
-                        fruitChoices.Add(new Point(i, j));
+                    if (GameGrid[i][j] == (int)Case.EMPTY)
+                        fruitChoices.Add(new Point(j, i));
                 }
             }
 
             FruitPosition = fruitChoices.ElementAt(random.Next(fruitChoices.Count));
             int x = (int)FruitPosition.X;
             int y = (int)FruitPosition.Y;
-            Grid[y][x] = (int)Case.FRUIT;
+            GameGrid[y][x] = (int)Case.FRUIT;
         }
 
         private void InitGrid()
         {
+            ClearGrid();
             for (int i = 0; i < Rows; i++)
             {
                 var row = new RowDefinition();
-                row.Height = new GridLength(50);
+                row.Height = new GridLength(SIZE);
                 WindowGrid.RowDefinitions.Add(row);
-                Grid[i] = new int[Cols];
+                GameGrid[i] = new int[Cols];
                 for (int j = 0; j < Cols; j++)
                 {
                     var col = new ColumnDefinition();
-                    col.Width = new GridLength(50);
+                    col.Width = new GridLength(SIZE);
                     WindowGrid.ColumnDefinitions.Add(col);
                 }
             }
@@ -97,33 +104,74 @@ namespace Snake
                 {
                     Canvas canvas = new Canvas();
                     canvas.Background = Brushes.White;
-                    canvas.SetValue(System.Windows.Controls.Grid.ColumnProperty, j);
-                    canvas.SetValue(System.Windows.Controls.Grid.RowProperty, i);
+                    canvas.SetValue(Grid.ColumnProperty, j);
+                    canvas.SetValue(Grid.RowProperty, i);
                     WindowGrid.Children.Add(canvas);
                 }
             }
+
+            //Add score
+            var row2 = new RowDefinition();
+            row2.Height = new GridLength(SIZE);
+            WindowGrid.RowDefinitions.Add(row2);
+            var score = new TextBox()
+            {
+                Text = "Score : " + Score.ToString(),
+                FontSize = 20,
+                Foreground = Brushes.White,
+                Background = Brushes.Black
+            };
+            score.SetValue(Grid.RowProperty, Rows + 1);
+            score.SetValue(Grid.ColumnProperty, 0);
+            Grid.SetColumnSpan(score, Cols/2);
+            WindowGrid.Children.Add(score);
+        }
+
+        private void ClearGrid()
+        {
+            WindowGrid.Children.Clear();
+            WindowGrid.RowDefinitions.Clear();
+            WindowGrid.ColumnDefinitions.Clear();
         }
 
         private void UpdateGame()
         {
-            while (true)
+            while (!GameOver)
             {
                 if (controller.IsConnected) CheckGamePad();
                 snake.MoveSnake();
-                if (IsGameOver()) break;
+                if (IsGameOver())
+                {
+                    GameOver = true;
+                    break;
+                }
                 if (snake.X == FruitPosition.X && snake.Y == FruitPosition.Y)
                 {
                     MakeFruit();
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateScore();
+                    });
                     snake.Size++;
                 }
                 SnakeHistory.Add(new Point(snake.X, snake.Y));
-                Grid[snake.Y][snake.X] = 1;
+                GameGrid[snake.Y][snake.X] = 1;
                 Dispatcher.Invoke(() =>
                 {
                     DrawGame();
                 });
                 Thread.Sleep(100);
             }
+        }
+
+        private void UpdateScore()
+        {
+            Score++;
+            var score = (TextBox)WindowGrid.Children
+              .Cast<UIElement>()
+              .First(e => Grid.GetRow(e) == Rows + 1 && Grid.GetColumn(e) == 0);
+            score.Text = "Score : " + Score.ToString();
+
         }
 
         private void CheckGamePad()
@@ -135,7 +183,7 @@ namespace Snake
             if (leftThumb.X < -50) snake.ChangeDirection(Snake1.Directions.LEFT);
 
             if (leftThumb.X > 50) snake.ChangeDirection(Snake1.Directions.RIGHT);
-            
+
             if (leftThumb.Y < -50) snake.ChangeDirection(Snake1.Directions.DOWN);
 
             if (leftThumb.Y > 50) snake.ChangeDirection(Snake1.Directions.UP);
@@ -147,27 +195,27 @@ namespace Snake
             {
                 var itemsInFirstRow = (Canvas)WindowGrid.Children
                     .Cast<UIElement>()
-                    .Where(row => System.Windows.Controls.Grid.GetRow(row) == SnakeHistory.ElementAt(0).Y)
-                    .Where(col => System.Windows.Controls.Grid.GetColumn(col) == SnakeHistory.ElementAt(0).X)
+                    .Where(row => Grid.GetRow(row) == SnakeHistory.ElementAt(0).Y)
+                    .Where(col => Grid.GetColumn(col) == SnakeHistory.ElementAt(0).X)
                     .FirstOrDefault();
                 itemsInFirstRow.Background = Brushes.White;
-                Grid[(int)SnakeHistory.ElementAt(0).Y][(int)SnakeHistory.ElementAt(0).X] = (int)Case.EMPTY;
+                GameGrid[(int)SnakeHistory.ElementAt(0).Y][(int)SnakeHistory.ElementAt(0).X] = (int)Case.EMPTY;
                 SnakeHistory.RemoveAt(0);
             }
             for (int i = 0; i < Rows; i++)
             {
                 for (int j = 0; j < Cols; j++)
                 {
-                    if (Grid[i][j] > 0)
+                    if (GameGrid[i][j] > 0)
                     {
                         var itemsInFirstRow = (Canvas)WindowGrid.Children
                             .Cast<UIElement>()
-                            .Where(row => System.Windows.Controls.Grid.GetRow(row) == i)
-                            .Where(col => System.Windows.Controls.Grid.GetColumn(col) == j)
+                            .Where(row => Grid.GetRow(row) == i)
+                            .Where(col => Grid.GetColumn(col) == j)
                             .FirstOrDefault();
-                        if(Grid[i][j] == (int)Case.SNAKE)
+                        if (GameGrid[i][j] == (int)Case.SNAKE)
                             itemsInFirstRow.Background = Brushes.Red;
-                        if (Grid[i][j] == (int)Case.FRUIT)
+                        if (GameGrid[i][j] == (int)Case.FRUIT)
                             itemsInFirstRow.Background = Brushes.Blue;
 
                     }
@@ -179,7 +227,11 @@ namespace Snake
         {
             if (snake.X >= Cols || snake.X < 0 || snake.Y >= Rows || snake.Y < 0)
                 return true;
-
+            foreach (var item in SnakeHistory)
+            {
+                if (snake.X == item.X && snake.Y == item.Y)
+                    return true;
+            }
             return false;
         }
 
@@ -190,8 +242,10 @@ namespace Snake
             if (e.Key == Key.Right) snake.ChangeDirection(Snake1.Directions.RIGHT);
 
             if (e.Key == Key.Up) snake.ChangeDirection(Snake1.Directions.UP);
-            
+
             if (e.Key == Key.Down) snake.ChangeDirection(Snake1.Directions.DOWN);
+
+            if (e.Key == Key.R && GameOver) NewGame();
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
